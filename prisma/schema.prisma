@@ -1,0 +1,199 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          UserRole  @default(STUDENT)
+  accounts      Account[]
+  sessions      Session[]
+  profile       Profile?
+  clubMemberships ClubMember[]
+  eventRegistrations EventRegistration[]
+  feedbacks     Feedback[]
+  certificates  Certificate[]
+  regNo         String   @unique
+  department    String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdClubs  Club[]  @relation("ClubCreator")
+  coordinatedClubs Club[] @relation("ClubCoordinator")
+}
+
+model Profile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  regNo         String   @unique
+  department    String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Club {
+  id          String   @id @default(cuid())
+  clubId      String   @unique
+  name        String
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  status      ClubStatus @default(PENDING)
+  creatorId   String
+  creator     User     @relation("ClubCreator", fields: [creatorId], references: [id])
+  coordinatorId String
+  coordinator User     @relation("ClubCoordinator", fields: [coordinatorId], references: [id])
+  members     ClubMember[]
+  events      Event[]
+}
+
+model ClubMember {
+  id        String   @id @default(cuid())
+  userId    String
+  clubId    String
+  status    JoinStatus @default(PENDING)
+  joinedAt  DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  club      Club     @relation(fields: [clubId], references: [id])
+
+  @@unique([userId, clubId])
+}
+
+model Event {
+  id              String    @id @default(cuid())
+  name            String
+  description     String
+  date            DateTime
+  time            String
+  location        String
+  maxParticipants Int?
+  clubId          String
+  club            Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  registrations   EventRegistration[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  feedbacks       Feedback[]
+  certificates    Certificate[]
+  status          EventStatus @default(PENDING)
+  createdBy       String
+
+  @@index([clubId])
+}
+
+model EventRegistration {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  status    RegistrationStatus @default(REGISTERED)
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+model Certificate {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  issuedAt  DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+  COORDINATOR
+}
+
+enum MemberStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RegistrationStatus {
+  REGISTERED
+  ATTENDED
+  CANCELLED
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ClubStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DEACTIVATED
+}
+
+enum JoinStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EventStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
